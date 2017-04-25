@@ -143,45 +143,6 @@
 
     </ol></li>
 
-    <li class="apidocModuleLi"><a href="#apidoc.module.couchapp.createApp">module couchapp.createApp</a><ol>
-
-        <li>
-
-            <a class="apidocElementLiA" href="#apidoc.element.couchapp.createApp.createApp">
-            function <span class="apidocSignatureSpan">couchapp.</span>createApp
-            <span class="apidocSignatureSpan">(doc, url, cb)</span>
-            </a>
-
-        </li>
-
-    </ol></li>
-
-    <li class="apidocModuleLi"><a href="#apidoc.module.couchapp.loadAttachments">module couchapp.loadAttachments</a><ol>
-
-        <li>
-
-            <a class="apidocElementLiA" href="#apidoc.element.couchapp.loadAttachments.loadAttachments">
-            function <span class="apidocSignatureSpan">couchapp.</span>loadAttachments
-            <span class="apidocSignatureSpan">(doc, root, prefix)</span>
-            </a>
-
-        </li>
-
-    </ol></li>
-
-    <li class="apidocModuleLi"><a href="#apidoc.module.couchapp.loadFiles">module couchapp.loadFiles</a><ol>
-
-        <li>
-
-            <a class="apidocElementLiA" href="#apidoc.element.couchapp.loadFiles.loadFiles">
-            function <span class="apidocSignatureSpan">couchapp.</span>loadFiles
-            <span class="apidocSignatureSpan">(dir, options)</span>
-            </a>
-
-        </li>
-
-    </ol></li>
-
     <li class="apidocModuleLi"><a href="#apidoc.module.couchapp.mimetypes">module couchapp.mimetypes</a><ol>
 
         <li>
@@ -335,7 +296,23 @@
     // A few notes.
     //   File change events are stored in an array and bundled up in to one write call.,
     // this reduces the amount of unnecessary processing as we ...</pre></li>
-    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+    } else {
+onBeforePushSync();
+for (i in apps) {
+  //an immediately executed function is used so the loop counter variable is available
+  //in createApp&#x27;s callback function: multiple calls to push/sync are supported and
+  //onAfterPushSync is supplied as the callback function on the last call
+  (function keepLoopCounter(i) {
+    couchapp.<span class="apidocCodeKeywordSpan">createApp</span>(require(abspath(apps[i])), couch, function (app) {
+      if (command == &#x27;push&#x27;) {
+        app.push(i == apps.length - 1 ? onAfterPushSync : null);
+      }
+      else if (command == &#x27;sync&#x27;) {
+        app.sync(i == apps.length ? onAfterPushSync : null);
+      }
+    });
+...</pre></li>
     </ul>
 
 
@@ -409,7 +386,23 @@ Start the server:
 
   return obj;
 }</pre></li>
-    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+* rather than mapped into little files in lots of directories like
+* the python couchapp. But there are definitely cases where we might want
+* to use some module or another on the server side. This addition
+* loads file contents from a given directory (recursively) into a js
+* object that can be added to a design document and require()&#x27;d in
+* lists, shows, etc.
+*
+* Use couchapp.<span class="apidocCodeKeywordSpan">loadFiles</span>() in app.js like this:
+*
+*    ddoc = {
+*        _id: &#x27;_design/app&#x27;
+*      , views: {}
+*      , ...
+*      , lib: couchapp.loadFiles(&#x27;./lib&#x27;)
+*      , vendor: couchapp.loadFiles(&#x27;./vendor&#x27;)
+...</pre></li>
     </ul>
 
 
@@ -452,228 +445,6 @@ Start the server:
 </div>
 
 <div class="apidocSectionDiv">
-<h1><a href="#apidoc.module.couchapp.createApp" id="apidoc.module.couchapp.createApp">module couchapp.createApp</a></h1>
-
-
-    <h2>
-        <a href="#apidoc.element.couchapp.createApp.createApp" id="apidoc.element.couchapp.createApp.createApp">
-        function <span class="apidocSignatureSpan">couchapp.</span>createApp
-        <span class="apidocSignatureSpan">(doc, url, cb)</span>
-        </a>
-    </h2>
-    <ul>
-    <li>description and source-code<pre class="apidocCodePre">function createApp(doc, url, cb) {
-  var app = {doc:doc}
-
-  app.fds = {};
-
-  app.prepare = function () {
-    var p = function (x) {
-      for (i in x) {
-        if (i[0] != &#x27;_&#x27;) {
-          if (typeof x[i] == &#x27;function&#x27;) {
-            x[i] = x[i].toString()
-            x[i] = &#x27;function &#x27;+x[i].slice(x[i].indexOf(&#x27;(&#x27;))
-          }
-          if (typeof x[i] == &#x27;object&#x27;) {
-            p(x[i])
-          }
-        }
-      }
-    }
-    p(app.doc);
-    app.doc.__attachments = app.doc.__attachments || []
-    app.doc.attachments_md5 = app.doc.attachments_md5 || {}
-    app.doc._attachments = app.doc._attachments || {}
-  }
-
-  var push = function (callback) {
-    console.log(&#x27;Serializing.&#x27;)
-    var doc = copy(app.doc);
-    doc._attachments = copy(app.doc._attachments)
-    delete doc.__attachments;
-    var body = JSON.stringify(doc)
-    console.log(&#x27;PUT &#x27;+url.replace(/^(https?:\/\/[^@:]+):[^@]+@/, &#x27;$1:******@&#x27;))
-    request({uri:url, method:&#x27;PUT&#x27;, body:body, headers:h}, function (err, resp, body) {
-      if (err) throw err;
-      if (resp.statusCode !== 201) {
-        throw new Error(&#x22;Could not push document\nCode: &#x22; + resp.statusCode + &#x22;\n&#x22;+body);
-      }
-      app.doc._rev = JSON.parse(body).rev
-      console.log(&#x27;Finished push. &#x27;+app.doc._rev)
-      request({uri:url, headers:h}, function (err, resp, body) {
-        body = JSON.parse(body);
-        app.doc._attachments = body._attachments;
-        if (callback) callback()
-      })
-    })
-  }
-
-  app.push = function (callback) {
-    var revpos
-      , pending_dirs = 0
-      ;
-
-    console.log(&#x27;Preparing.&#x27;)
-    var doc = app.current;
-    for (i in app.doc) {
-      if (i !== &#x27;_rev&#x27;) doc[i] = app.doc[i]
-    }
-    app.doc = doc;
-    app.prepare();
-    revpos = app.doc._rev ? parseInt(app.doc._rev.slice(0,app.doc._rev.indexOf(&#x27;-&#x27;))) : 0;
-
-    var coffeeCompile;
-    var coffeeExt;
-    try{
-      coffeeCompile = require(&#x27;coffee-script&#x27;);
-      coffeeExt = /\.(lit)?coffee$/;
-    } catch(e){}
-
-    app.doc.__attachments.forEach(function (att) {
-      watch.walk(att.root, {ignoreDotFiles:true}, function (err, files) {
-        pending_dirs += 1;
-        var pending_files = Object.keys(files).length;
-        for (i in files) { (function (f) {
-          fs.readFile(f, function (err, data) {
-            if(f.match(coffeeExt)){
-              data = new Buffer( coffeeCompile.compile(data.toString()) );
-              f = f.replace(coffeeExt,&#x27;.js&#x27;);
-            }
-            f = f.replace(att.root, att.prefix || &#x27;&#x27;).replace(/\\/g,&#x22;/&#x22;);
-            if (f[0] == &#x27;/&#x27;) f = f.slice(1)
-            if (!err) {
-              var d = data.toString(&#x27;base64&#x27;)
-                , md5 = crypto.createHash(&#x27;md5&#x27;)
-                , mime = mimetypes.lookup(path.extname(f).slice(1))
-                ;
-              md5.update(d)
-              md5 = md5.digest(&#x27;hex&#x27;)
-              if (app.doc.attachments_md5[f] &#x26;&#x26; app.doc._attachments[f]) {
-                if (app.doc._attachments[f].revpos === app.doc.attachments_md5[f].revpos &#x26;&#x26;
-                    app.doc.attachments_md5[f].md5 === md5) {
-                  pending_files -= 1;
-                  if(pending_files === 0){
-                    pending_dirs -= 1;
-                    if(pending_dirs === 0){
-                      push(callback);
-                    }
-                  }
-                  return; // Does not need to be updated.
-                }
-              }
-              app.doc._attachments[f] = {data:d, content_type:mime};
-              app.doc.attachments_md5[f] = {revpos:revpos + 1, md5:md5};
-            }
-            pending_files -= 1
-            if(pending_files === 0){
-              pending_dirs -= 1;
-              if(pending_dirs === 0){
-                push(callback);
-              }
-            }
-          })
-        })(i)}
-      })
-    })
-    if (!app.doc.__attachments || app.doc.__attachments.length == 0) push(callback);
-  }
-
-  app.sync = function (callback) {
-    // A few notes.
-    //   File change events are stored in an array and bundled up in to one write call.,
-    // this reduces the amount of unnecessary processing as we ...</pre></li>
-    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
-    </ul>
-
-
-</div>
-
-<div class="apidocSectionDiv">
-<h1><a href="#apidoc.module.couchapp.loadAttachments" id="apidoc.module.couchapp.loadAttachments">module couchapp.loadAttachments</a></h1>
-
-
-    <h2>
-        <a href="#apidoc.element.couchapp.loadAttachments.loadAttachments" id="apidoc.element.couchapp.loadAttachments.loadAttachments">
-        function <span class="apidocSignatureSpan">couchapp.</span>loadAttachments
-        <span class="apidocSignatureSpan">(doc, root, prefix)</span>
-        </a>
-    </h2>
-    <ul>
-    <li>description and source-code<pre class="apidocCodePre">function loadAttachments(doc, root, prefix) {
-  doc.__attachments = doc.__attachments || []
-  try {
-    fs.statSync(root)
-  } catch(e) {
-    throw e
-    throw new Error(&#x22;Cannot stat file &#x22;+root)
-  }
-  doc.__attachments.push({root:root, prefix:prefix});
-}</pre></li>
-    <li>example usage<pre class="apidocCodePre">...
-    };
-
-    if (newDoc.type == &#x22;person&#x22;) {
-      require(&#x22;name&#x22;);
-    }
-  }
-
-  couchapp.<span class="apidocCodeKeywordSpan">loadAttachments</span>(ddoc, path.join(__dirname, &#x27;_attachments&#x27;));
-&#x3c;/pre&#x3e;
-
-
-Local development server example.
-
-Start the server:
-...</pre></li>
-    </ul>
-
-
-</div>
-
-<div class="apidocSectionDiv">
-<h1><a href="#apidoc.module.couchapp.loadFiles" id="apidoc.module.couchapp.loadFiles">module couchapp.loadFiles</a></h1>
-
-
-    <h2>
-        <a href="#apidoc.element.couchapp.loadFiles.loadFiles" id="apidoc.element.couchapp.loadFiles.loadFiles">
-        function <span class="apidocSignatureSpan">couchapp.</span>loadFiles
-        <span class="apidocSignatureSpan">(dir, options)</span>
-        </a>
-    </h2>
-    <ul>
-    <li>description and source-code<pre class="apidocCodePre">function loadFiles(dir, options) {
-  var listings = fs.readdirSync(dir)
-    , options = options || {}
-    , obj = {};
-
-  listings.forEach(function (listing) {
-    var file = path.join(dir, listing)
-      , prop = listing.split(&#x27;.&#x27;)[0] // probably want regexp or something more robust
-      , stat = fs.statSync(file);
-
-      if (stat.isFile()) {
-        var content = fs.readFileSync(file).toString();
-        if (options.operators) {
-          options.operators.forEach(function (op) {
-            content = op(content, options);
-          });
-        }
-        obj[prop] = content;
-      } else if (stat.isDirectory()) {
-        obj[listing] = loadFiles(file, options);
-      }
-  });
-
-  return obj;
-}</pre></li>
-    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
-    </ul>
-
-
-</div>
-
-<div class="apidocSectionDiv">
 <h1><a href="#apidoc.module.couchapp.mimetypes" id="apidoc.module.couchapp.mimetypes">module couchapp.mimetypes</a></h1>
 
 
@@ -691,7 +462,23 @@ Start the server:
     ? exports.types[ext]
     : defaultType;
 }</pre></li>
-    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+  f = f.replace(coffeeExt,&#x27;.js&#x27;);
+}
+f = f.replace(att.root, att.prefix || &#x27;&#x27;).replace(/\\/g,&#x22;/&#x22;);
+if (f[0] == &#x27;/&#x27;) f = f.slice(1)
+if (!err) {
+  var d = data.toString(&#x27;base64&#x27;)
+    , md5 = crypto.createHash(&#x27;md5&#x27;)
+    , mime = mimetypes.<span class="apidocCodeKeywordSpan">lookup</span>(path.extname(f).slice(1))
+    ;
+  md5.update(d)
+  md5 = md5.digest(&#x27;hex&#x27;)
+  if (app.doc.attachments_md5[f] &#x26;&#x26; app.doc._attachments[f]) {
+    if (app.doc._attachments[f].revpos === app.doc.attachments_md5[f].revpos &#x26;&#x26;
+        app.doc.attachments_md5[f].md5 === md5) {
+      pending_files -= 1;
+...</pre></li>
     </ul>
 
 
