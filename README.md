@@ -1,4 +1,7 @@
-# api documentation for  couchapp (v0.11.0)  [![npm package](https://img.shields.io/npm/v/npmdoc-couchapp.svg?style=flat-square)](https://www.npmjs.org/package/npmdoc-couchapp) [![travis-ci.org build-status](https://api.travis-ci.org/npmdoc/node-npmdoc-couchapp.svg)](https://travis-ci.org/npmdoc/node-npmdoc-couchapp)
+# npmdoc-couchapp
+
+#### basic api documentation for  couchapp (v0.11.0)  [![npm package](https://img.shields.io/npm/v/npmdoc-couchapp.svg?style=flat-square)](https://www.npmjs.org/package/npmdoc-couchapp) [![travis-ci.org build-status](https://api.travis-ci.org/npmdoc/node-npmdoc-couchapp.svg)](https://travis-ci.org/npmdoc/node-npmdoc-couchapp)
+
 #### Utilities for building CouchDB applications.
 
 [![NPM](https://nodei.co/npm/couchapp.png?downloads=true&downloadRank=true&stars=true)](https://www.npmjs.com/package/couchapp)
